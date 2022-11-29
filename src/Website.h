@@ -7,6 +7,7 @@ class Website
 {
 public:
     Website() = default;
+    Website(HardwareSerial* serial){this->serial = serial;};
 
     void HomePage(WiFiClient* client);
 
@@ -14,6 +15,7 @@ private:
     void SendSuccessHeader(WiFiClient* client); //Send a 200 OK header
     void SendFooter(WiFiClient* client); //Send a footer
     void SendFailureHeader(WiFiClient* client); //Send a 404 Not Found header
+    HardwareSerial* serial;
 };
 
 

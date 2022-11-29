@@ -10,15 +10,19 @@ const char* password = "";
 
 static const int TOUCH_PIN = 4;
 
+Webserver webserver;
+
 void setup() {
   pinMode(LED,OUTPUT);
 
   Serial.begin(115200);
-  setupWebServer(ssid, password);
+  Serial.println("Booting");
+  webserver = Webserver(&Serial);
+  webserver.setupWebServer(ssid, password);
 
 }
 
 void loop() {
-  loopWebServer();
+  webserver.loopWebServer();
 
 }
