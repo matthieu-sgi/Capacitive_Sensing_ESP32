@@ -47,24 +47,28 @@ void Webserver::loopWebServer(){
     while (client.connected()) {            // loop while the client's connected
       if (client.available()) {             // if there's bytes to read from the client,
         char c = client.read();             // read a byte, then
-        serial->print("C value : ");
+        // serial->print("C value : ");
         serial->write(c);                    // print it out the serial monitor
         header += c;
         if (c == '\n') {                    // if the byte is a newline character
+        if (currentLine.length() == 0 ){
             serial->println("Home page");
             website.HomePage(&client);
-
-
+                    break;
+          } else { // if you got a newline, then clear currentLine
+            currentLine = "";
+          }
+        } else if (c != '\r') {  // if you got anything else but a carriage return character,
+          currentLine += c;      // add it to the end of the currentLine
+        }
       }
     }
-    serial->print("\nHeader content : ");
-    serial->println(header);
+    // serial->println(header);
     // Clear the header variable
     header = "";
     // Close the connection
     client.stop();
-    serial->println("\nClient disconnected.");
-    serial->println("");
+    Serial.println("Client disconnected.");
+    Serial.println("");
   }
-}
 }
