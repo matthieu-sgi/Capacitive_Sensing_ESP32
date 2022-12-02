@@ -8,8 +8,8 @@
 class AsyncWebserver
 {
 public:
-    Webserver() = default;
-    Webserver(HardwareSerial* serial){this->serial = serial;};
+    AsyncWebserver() = default;
+    AsyncWebserver(HardwareSerial* serial){this->serial = serial;};
     void setupWebServer(const char* ssid, const char* password);
     void loopWebServer();
 private:
