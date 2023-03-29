@@ -1,0 +1,15 @@
+# Python package requirements for ESP-IDF. These are the so called core features which are installed in all systems.
+
+setuptools
+click
+pyserial
+cryptography
+pyparsing
+pyelftools
+idf-component-manager
+esp-coredump
+esptool
+esp-idf-kconfig
+
+# gdb extensions dependencies
+freertos_gdb
