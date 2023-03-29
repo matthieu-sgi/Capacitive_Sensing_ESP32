@@ -9,4 +9,12 @@ The PCB can be found in [this repository](https://github.com/matthieu-sgi/NE555_
 
 ## How to use
 
-![PCB circuit](PCB/NE555_Musical_Plant_Interface/media/NE555_Musical_Plant_Interface.png)
+![PCB circuit](PCB/NE555_Musical_Plant_Interface/media/Final_pcb6_edit2.png)
+
+The user guide instructions are given following the picture above. 
+
+Plug the jack from the plant electrodes in the jack on the bottom right.
+
+Plug the jack to the speaker int the middle left jack.
+
+Plug the DC jack in the DC jack on the middle-top right.
