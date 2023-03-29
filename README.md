@@ -9,7 +9,7 @@ The PCB can be found in [this repository](https://github.com/matthieu-sgi/NE555_
 
 ## How to use
 
-![PCB circuit](media/Final_pcb6_edit2.png)
+![PCB circuit](./media/Final_pcb6_edit2.png)
 
 The user guide instructions are given following the picture above. 
 
