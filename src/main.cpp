@@ -162,51 +162,253 @@
 
 #include <Arduino.h>
 
-#define CALIB_PIN 4
-#define INTERRUPT_PIN 2
-
-volatile int interruptCounter = 0;
-
-int max_value = 0;
-int min_value = 1024;
 
 
-// Callback interrupt
+// #define CALIB_PIN 27
+// #define INTERRUPT_PIN 27
 
-void interupt_callback() {
-  Serial.println("Interrupt");
-  interruptCounter++;
-}
+// //define the i2s pins
+// #define I2S_BITCLOCK_PIN 19
+// #define I2S_DATA_PIN 18
+// #define I2S_FRAMECLOCK_PIN 21
 
-void calibrate() {
-  // Do the calibration for 10 seconds
-  Serial.println("Calibration started");
-  unsigned long start_time = millis();
-  while (millis() - start_time < 10000)
-  {
-    int value = analogRead(CALIB_PIN);
-    max_value = (value > max_value) ? value : max_value;
-    min_value = (value < min_value) ? value : min_value;
-    Serial.print("Value: ");
-    Serial.print(value);
-    Serial.print(" - Max: ");
-    Serial.print(max_value);
-    Serial.print(" - Min: ");
-    Serial.println(min_value);
-  }
+
+// int interruptCounter = 0;
+
+// int max_freq = 0;
+// int min_freq = 1024;
+
+// unsigned long temp_time = 0;
+
+
+// // Callback interrupt
+
+// void IRAM_ATTR ISR() {
+//   // Serial.println("Interrupt");
+//   interruptCounter++;
+// }
+
+// void calibrate() {
+
+//   // Set the interrupt pin as input
+//   pinMode(INTERRUPT_PIN, INPUT);
+//   // Attach the interupt to the pin
+//   attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), ISR, RISING);
+//   // Do the calibration for 10 seconds
+//   Serial.println("Calibration started");
+//   unsigned long starting_time = millis();
+//   temp_time = millis();
+//   while (millis() - starting_time < 30000) // Calibrate for 30 seconds
+//   {
+//     if(millis() - temp_time > 1000) {
+//       // Stop interupt
+//       detachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN));
+//       Serial.println("Frequence computation in progress");
+//       int freq = interruptCounter;
+//       max_freq = (freq > max_freq) ? freq : max_freq;
+//       min_freq = (freq < min_freq) ? freq : min_freq;
+//       interruptCounter = 0;
+//       // Reattach interupt
+//       attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), ISR, RISING);
+//     }
+
+//   }
   
+//   detachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN));
 
 
+// }
+
+// int frequency(){
+//     if(millis() - temp_time > 1000) {
+//     Serial.print("Frequence :");
+//     int freq = interruptCounter;
+//     Serial.println(freq);
+//     interruptCounter = 0;
+//     Serial.print("Max: ");
+//     Serial.print(max_freq);
+//     Serial.print(" - Min: ");
+//     Serial.println(min_freq);
+//     temp_time = millis();
+//     return freq;
+//   }
+// }
+
+/*  Example using waveshaping to modify the spectrum of an audio signal
+    using Mozzi sonification library.
+    Demonstrates the use of WaveShaper(), EventDelay(), Smooth(),
+    rand(), and fixed-point numbers.
+    Circuit: Audio output on digital pin 9 on a Uno or similar, or
+    DAC/A14 on Teensy 3.1, or
+    check the README or http://sensorium.github.io/Mozzi/
+        Mozzi documentation/API
+        https://sensorium.github.io/Mozzi/doc/html/index.html
+        Mozzi help/discussion/announcements:
+    https://groups.google.com/forum/#!forum/mozzi-users
+    Tim Barrass 2012, CC by-nc-sa.
+*/
+#include <MozziGuts.h>
+#include <Oscil.h>
+#include <WaveShaper.h>
+#include <EventDelay.h>
+#include <mozzi_rand.h>
+#include <mozzi_midi.h>
+#include <Smooth.h>
+#include <tables/sin2048_int8.h>
+#include <tables/waveshape_chebyshev_3rd_256_int8.h>
+#include <tables/waveshape_chebyshev_6th_256_int8.h>
+#include <tables/waveshape_compress_512_to_488_int16.h>
+
+#define INTERRUPT_PIN 4
+// use: Oscil <table_size, update_rate> oscilName (wavetable), look in .h file of table #included above
+Oscil <SIN2048_NUM_CELLS, AUDIO_RATE> aSin(SIN2048_DATA); // sine wave sound source
+Oscil <SIN2048_NUM_CELLS, AUDIO_RATE> aGain1(SIN2048_DATA); // to fade sine wave in and out before waveshaping
+Oscil <SIN2048_NUM_CELLS, AUDIO_RATE> aGain2(SIN2048_DATA); // to fade sine wave in and out before waveshaping
+// Chebyshev polynomial curves, The nth curve produces the n+2th harmonic component.
+WaveShaper <char> aCheby3rd(CHEBYSHEV_3RD_256_DATA); // 5th harmonic
+WaveShaper <char> aCheby6th(CHEBYSHEV_6TH_256_DATA); // 8th harmonic
+WaveShaper <int> aCompress(WAVESHAPE_COMPRESS_512_TO_488_DATA); // to compress instead of dividing by 2 after adding signals
+// for scheduling note changes
+EventDelay kChangeNoteDelay;
+// for random notes
+Q8n0 octave_start_note = 42;
+Q24n8 carrier_freq; // unsigned long with 24 integer bits and 8 fractional bits
+// smooth transitions between notes
+Smooth <unsigned int> kSmoothFreq(0.85f);
+int target_freq, smoothed_freq;
+
+int freq = 0;
+
+
+void ISR() {
+  // Serial.println("Interrupt");
+  freq++;
 }
 
-void setup() {
+int start_time;
+
+void setup(){
+  startMozzi(); // :)
+  randSeed(); // reseed the random generator for different results each time the sketch runs
+  aSin.setFreq(110); // set the frequency
+  aGain1.setFreq(2.f); // use a float for low frequencies, in setup it doesn't need to be fast
+  aGain2.setFreq(.4f);
+  kChangeNoteDelay.set(4000); // note duration ms, within resolution of CONTROL_RATE
   Serial.begin(115200);
-  pinMode(CALIB_PIN, INPUT);
+  attachInterrupt(INTERRUPT_PIN, ISR, RISING);
+  // pinMode(INTERRUPT_PIN, INPUT);
+  start_time = millis();
+  pinMode(26, OUTPUT);
 }
 
-void loop() {
-  int value = analogRead(CALIB_PIN);
-  Serial.print("Value: ");
-  Serial.println(value);
-  delay(100);
+
+
+
+byte rndPentatonic(){
+  byte note = rand((byte)5);
+  switch(note){
+  case 0:
+    note = 0;
+    break;
+  case 1:
+    note = 3;
+    break;
+  case 2:
+    note = 5;
+    break;
+  case 3:
+    note = 7;
+    break;
+  case 4:
+    note = 10;
+    break;
+  }
+  return note;
 }
+void updateControl(){
+    if (millis()- start_time  > 1000) {
+    Serial.println(freq);
+    if (freq > 5){
+      // Serial.println("SOUND");
+      startMozzi();
+      // analogWrite(26, 128);
+      // analogWrite(26, 0);
+        if(kChangeNoteDelay.ready()){
+    if(rand((byte)5)==0){ // about 1 in 5 or so
+      // change octave to midi 24 or any of 3 octaves above
+      // octave_start_note = (rand((byte)4)*12)+36;
+      octave_start_note = (rand((byte)4)*4)+36; // I decreased the number to 5 to avoid high notes
+    }
+    Q16n16 midi_note = Q8n0_to_Q16n16(octave_start_note+rndPentatonic());
+    target_freq = Q16n16_to_Q16n0(Q16n16_mtof(midi_note)); // has to be 16 bits for Smooth
+    kChangeNoteDelay.start();
+    
+  }
+  smoothed_freq = kSmoothFreq.next(target_freq*4); // temporarily scale up target_freq to get better int smoothing at low values
+  aSin.setFreq(smoothed_freq/4); // then scale it back down after it's smoothed
+
+    }
+    else {
+      // Serial.println("NO SOUND");
+      // analogWrite(26, 0);
+      stopMozzi();
+    }
+    freq = 0;
+    start_time = millis();
+  }
+  // if(kChangeNoteDelay.ready()){
+  //   if(rand((byte)5)==0){ // about 1 in 5 or so
+  //     // change octave to midi 24 or any of 3 octaves above
+  //     // octave_start_note = (rand((byte)4)*12)+36;
+  //     octave_start_note = (rand((byte)4)*4)+36; // I decreased the number to 5 to avoid high notes
+  //   }
+  //   Q16n16 midi_note = Q8n0_to_Q16n16(octave_start_note+rndPentatonic());
+  //   target_freq = Q16n16_to_Q16n0(Q16n16_mtof(midi_note)); // has to be 16 bits for Smooth
+  //   kChangeNoteDelay.start();
+  // }
+  // smoothed_freq = kSmoothFreq.next(target_freq*4); // temporarily scale up target_freq to get better int smoothing at low values
+  // aSin.setFreq(smoothed_freq/4); // then scale it back down after it's smoothed
+
+}
+int updateAudio(){
+  char asig0 = aSin.next(); // sine wave source
+  // make 2 signals fading in and out to show effect of amplitude when waveshaping with Chebyshev polynomial curves
+  // offset the signals by 128 to fit in the 0-255 range for the waveshaping table lookups
+  byte asig1 = (byte)128+((asig0*((byte)128+aGain1.next()))>>8);
+  byte asig2 = (byte)128+((asig0*((byte)128+aGain2.next()))>>8);
+  // get the waveshaped signals
+  char awaveshaped1 = aCheby3rd.next(asig1);
+  char awaveshaped2 = aCheby6th.next(asig2);
+  // use a waveshaping table to squeeze 2 summed 8 bit signals into the range -244 to 243
+  int awaveshaped3 = aCompress.next(256u + awaveshaped1 + awaveshaped2);
+  return awaveshaped3 * 0.3;
+  // return 0;
+}
+void loop(){
+  // audioHook(); // required here
+  // Check frequency every second
+  // Serial.println(freq);
+  // digitalRead(INTERRUPT_PIN);
+  // Serial.println(freq);
+
+    // audioHook();
+
+  if (millis()- start_time  > 1000) {
+    Serial.println(freq);
+    if (freq >= 3){
+      Serial.println("SOUND");
+      // analogWrite(26, 128);
+      // analogWrite(26, 0);
+      analogWrite(26, 15);
+      delay(500);
+      analogWrite(26, 20);
+      delay(500);
+      analogWrite(26, 0);
+
+    }
+    freq = 0;
+    start_time = millis();
+  }
+}
+
+
