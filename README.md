@@ -5,4 +5,8 @@ This project is a proof of concept for a capacitive sensing interface for musica
 The esp32 generate a web server to simplify the calibration. It will embed a SD card to store the calibration data.
 
 
-The PCB can be found in [this repository](https://github.com/matthieu-sgi/NE555_Musical_Plant_Interface).
+The PCB can be found in [this repository](https://github.com/matthieu-sgi/NE555_Musical_Plant_Interface) or in `PCB/NE555_Musical_Plant_Interface` folder.
+
+## How to use
+
+![PCB circuit](PCB/NE555_Musical_Plant_Interface/media/NE555_Musical_Plant_Interface.png)
