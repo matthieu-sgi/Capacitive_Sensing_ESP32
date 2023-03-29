@@ -1,0 +1,3 @@
+[submodule "NE555_Musical_Plant_Interface"]
+	path = NE555_Musical_Plant_Interface
+	url = git@github.com:matthieu-sgi/NE555_Musical_Plant_Interface.git
